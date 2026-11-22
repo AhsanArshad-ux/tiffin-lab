@@ -1,5 +1,6 @@
-# Tiffin Lab (CS4032 Assignment 02)
-Student: *(name, roll no, section)* · GitHub: *(link)* · Deployment: *(link)* · Final commit: *(hash)*
+Student: Ahsan, i242049, Section A · GitHub: https://github.com/AhsanArshad-ux/tiffin-lab · Deployment: https://tiffin-lab.vercel.app · Final commit: see report
+
+
 
 Fictional meal-prep business for university students in Islamabad: individual meals, weekly bundles, collection (G-11) or delivery (G-10, G-11, F-10, H-12). Orders are **simulated**; no payment or personal data.
 
