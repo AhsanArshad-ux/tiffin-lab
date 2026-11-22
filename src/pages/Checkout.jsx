@@ -1,0 +1,73 @@
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useCart } from '../context/CartContext.jsx';
+import { AREAS, checkFulfilment, deliveryFee } from '../rules/rules.js';
+
+const SLOTS = ['Today 7–9 PM', 'Tomorrow 12–2 PM', 'Tomorrow 7–9 PM'];
+const initial = { nickname: '', method: 'collection', area: '', slot: '', note: '' };
+
+function validate(f) {
+  const e = {};
+  if (f.nickname.trim().length < 2 || f.nickname.trim().length > 20) e.nickname = 'Enter a pickup name of 2 to 20 characters.';
+  else if (!/^[A-Za-z ]+$/.test(f.nickname.trim())) e.nickname = 'Use letters and spaces only.';
+  if (f.method === 'delivery' && !f.area) e.area = 'Choose your delivery area.';
+  if (!f.slot) e.slot = 'Choose a time slot.';
+  if (f.note.length > 80) e.note = `Keep the note under 80 characters (now ${f.note.length}).`;
+  return e;
+}
+
+export default function Checkout() {
+  const { lines, subtotal, setOrder, clear } = useCart();
+  const [form, setForm] = useState(initial);
+  const [errors, setErrors] = useState({});
+  const [ruleErrors, setRuleErrors] = useState([]);
+  const navigate = useNavigate();
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value })); // other fields are preserved
+  const fee = deliveryFee(subtotal, form.method);
+  const total = subtotal + fee;
+
+  if (lines.length === 0) return <div className="empty"><h1>Nothing to check out</h1><Link className="btn-primary" to="/menu">Browse the menu</Link></div>;
+
+  const submit = (e) => {
+    e.preventDefault();
+    const errs = validate(form);
+    const rules = checkFulfilment({ subtotal, method: form.method, area: form.area });
+    setErrors(errs); setRuleErrors(rules);
+    if (Object.keys(errs).length || rules.length) return;
+    setOrder({ ref: `TL-${Date.now().toString(36).toUpperCase()}`, nickname: form.nickname.trim(), method: form.method, area: form.area, slot: form.slot, lines: lines.map(({ name, qty, price }) => ({ name, qty, price })), subtotal, fee, total });
+    clear();
+    navigate('/confirmation');
+  };
+
+  const field = (k) => ({ 'aria-invalid': !!errors[k], 'aria-describedby': errors[k] ? `${k}-err` : undefined });
+  const err = (k) => (errors[k] ? <span id={`${k}-err`} className="error" role="alert">{errors[k]}</span> : null);
+
+  return (
+    <section className="checkout">
+      <h1>Your details</h1>
+      <p className="info">This is a simulated order. No payment or real personal data is collected.</p>
+      <form onSubmit={submit} noValidate>
+        <label>Pickup name<input value={form.nickname} onChange={set('nickname')} {...field('nickname')} />{err('nickname')}</label>
+        <fieldset><legend>How do you want your order?</legend>
+          <label className="inline"><input type="radio" name="method" value="collection" checked={form.method === 'collection'} onChange={set('method')} /> Collect from G-11 kitchen (free)</label>
+          <label className="inline"><input type="radio" name="method" value="delivery" checked={form.method === 'delivery'} onChange={set('method')} /> Delivery (Rs 150, free from Rs 2,000; min Rs 800)</label>
+        </fieldset>
+        {form.method === 'delivery' && (
+          <label>Delivery area<select value={form.area} onChange={set('area')} {...field('area')}><option value="">Select area</option>{AREAS.map((a) => <option key={a}>{a}</option>)}</select>{err('area')}</label>
+        )}
+        <label>Time slot<select value={form.slot} onChange={set('slot')} {...field('slot')}><option value="">Select a slot</option>{SLOTS.map((s) => <option key={s}>{s}</option>)}</select>{err('slot')}</label>
+        <label>Note for the kitchen (optional)<textarea rows="2" value={form.note} onChange={set('note')} {...field('note')} />{err('note')}</label>
+
+        <div className="summary" aria-live="polite">
+          <h2>Summary</h2>
+          <p>Items: {lines.reduce((n, l) => n + l.qty, 0)}</p>
+          <p>Subtotal: Rs {subtotal}</p>
+          <p>{form.method === 'delivery' ? `Delivery fee: Rs ${fee}${fee === 0 ? ' (free)' : ''}` : 'Collection: no fee'}</p>
+          <p className="total">Total: Rs {total}</p>
+        </div>
+        {ruleErrors.map((m) => <p key={m} className="error" role="alert">{m}</p>)}
+        <div className="actions"><button className="btn-primary" type="submit">Place simulated order</button><Link className="btn-ghost" to="/cart">Back to cart</Link></div>
+      </form>
+    </section>
+  );
+}
